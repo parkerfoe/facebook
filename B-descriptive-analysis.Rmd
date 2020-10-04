@@ -1,11 +1,6 @@
 ---
-title: 'MY472 Final Exam Part B: Descriptive Analysis'
+title: 'Part B: Descriptive Analysis'
 ---
-
-The goal of this second part of the assignment is to analyze the datasets you just created in order to answer a set of descriptive questions. Your answer to the questions will offer important context towards the overall research question:  __Why is there so much negativity on Facebook comments about politics?__
-
-For each item below, you should write code with any statistical or graphical analysis that you consider appropriate, and then answer the question.
-
 ```{r}
 library(DBI, quietly = T)
 library(ggplot2)
@@ -32,10 +27,7 @@ is_outlier <- function(x) {
          | x > quantile(x, 0.9909) + 1.5 * IQR(x))
 }
 ```
-
-1. First of all, how much negativity is there on the comments of pages by U.S. legislators? In other words, what proportion of comments are negative?
-
-**Out of all comments made on U.S. legislators pages, 23.35% are negative.**
+Calculating proportion of comments that are negative
 
 ```{r}
 dbGetQuery(db,
@@ -43,13 +35,10 @@ dbGetQuery(db,
   THEN 1 ELSE 0 END) / COUNT(*))
   AS percent_negative FROM com_sent")
 ```
-
-2. How much variation is there in the level of negativity that legislators see on their Facebook pages? Which are the legislators with the highest and lowest proportion of negative comments?
-
-**Proportion of negativity on legislators ranges from Rep Donald Norcross at 10.57% negative sentiment to Rep Bruce Poliquin with 48.31% negative sentiment.**
+Variation and proportions of negativity within legislators
 
 ```{r}
-## Consider creating a boxplot or a graph like the one in ggplot assignment
+## Select only negative instances
 neg_com <- dbGetQuery(db,
   "SELECT facebook, (100.0 * SUM(CASE WHEN feel='negative'
   THEN 1 ELSE 0 END) / COUNT(*))
@@ -91,12 +80,7 @@ box +
 # geom_text_repel:
 #https://www.r-bloggers.com/repel-overlapping-text-labels-in-ggplot2/
 ```
-
-3. How did negativity evolve over time during the period of analysis? Do you identify any particular days or periods during which negativity spiked? Can you explain why?
-
-**After plotting and subsetting the number of negative reactions in this time period, I found that the period of the most negativity was during the Democratic primaries, the summer before the U.S. election in 2016, and a period after the election. I took the top 6 dates where the data reported the most negativity and researched events that occurred in U.S. politics during those dates.** 
-
-**Two days with some of the most negativity, 22-23 June 2016, coincided with the Democratic sit-in advocating for stronger gun control a few weeks after the Orlando shooting and the Republican response to Congress coming to a brief standstill. The second most negative day, 21 January 2015, was the day of the State of the Union by President Obama and 25-26 October 2015 correlates with the Democratic caucus in Iowa. The final date, 18 November 2016, was regarding the aftermath of the 2016 election.**
+Evolution of negativity over time
 
 ```{r warning=FALSE}
 # Negative reactions over time
@@ -117,11 +101,6 @@ plot(neg_time$created_time, neg_time$count_negative, type = "l",
 head(neg_time[order(-neg_time$count_negative), ])
 
 ```
-
-4. Are there any other variables in the dataset that could help you measure negativity? If so, do you find similar results to questions 2 and 3 when you use that other signal?
-
-**Other variables in the database that could help me measure negativity are the angry and sad reactions on posts. I hypothesize that the more angry and sad reactions that people receive, the more likely they view the content negatively. After running modified queries on the post_react dataset, I found that the results are different from the ones run using sentiment analysis. Instead of being more spread out, negativity was concentrated mostly during the 2016 election year with the exception of 30 October 2015 which could be attributed to the primaries.**
-
 ```{r}
 # We can use reactions on post_react to measure negativity
 
