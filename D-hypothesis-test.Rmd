@@ -1,0 +1,72 @@
+---
+title: 'MY472 Final Exam Part D: Testing a Substantive Hypothesis'
+---
+
+To conclude this assignment, you will offer preliminary evidence regarding one potential explanation about why there is so much negativity on Facebook comments: **negative comments are widespread because they receive more engagement.** In other words, maybe negative comments generated the type of reactions on people that make them more likely to like those comments or to reply to those comments.
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(DBI, quietly = T)
+library(ggplot2)
+library(ggrepel)
+library(tibble)
+library(dplyr)
+library(reshape2)
+library(data.table)
+
+# Import the data files from part A
+congress <- read.csv("congress-list.csv", stringsAsFactors = F)
+com_sent <- read.csv("com_sent.csv", stringsAsFactors = F)
+
+
+db <- dbConnect(RSQLite::SQLite(),
+                file = "~final-exam-parkerf20/congress.sqlite")
+
+dbWriteTable(db, "congress", congress)
+dbWriteTable(db, "com_sent", com_sent)
+```
+
+
+1. Do negative comments receive more likes than neutral or positive comments? Use any statistical or graphical methods that you consider appropriate to answer this question.
+
+**Negative comments do not receive more likes than neutral or positive comments. Positive comments receive the most likes at an average of 2 likes per comment, with neutral comments receiving 1.7, and negative comments receiving the least at an average of 0.93 likes per comment. Looking at the total number of likes, the same pattern persists with positive comments receiving the most and negative comments receiving the least number of likes altogether.**
+
+```{r}
+# Write a query to group average likes for each sentiment
+dbGetQuery(db, "SELECT feel, AVG(likes_count)
+           AS avg_likes_count
+           FROM com_sent
+           GROUP BY feel")
+
+dbGetQuery(db, "SELECT feel, SUM(likes_count)
+           AS sum_likes_count
+           FROM com_sent
+           GROUP BY feel")
+
+```
+
+2. Replicate the analysis above, but this time separately for Republicans and Democrats. Do you find any differences?
+
+**Both Republican and Democrat posts receive more likes on positive comments and the least amount of likes on the negative comments with neutral comments being in the middle. However, Independent posts receive the most average likes on neutral comments, but negative comments once again receives the least average number of likes.**
+
+```{r}
+# link above results, join with congress to get party
+parties <- merge(x = com_sent,
+                 y = congress[, c("party", "facebook")],
+                 by = "facebook")
+
+dbWriteTable(db, "parties", parties)
+
+# group by sentiment and party
+part_tab <- dbGetQuery(db, "SELECT feel, party, AVG(likes_count)
+           AS avg_likes_count
+           FROM parties
+           GROUP BY feel, party")
+
+part_tab <- dcast(part_tab, feel ~ party, value.var = "avg_likes_count")
+
+part_tab
+
+dbDisconnect(db)
+
+lintr::lint("D-hypothesis-test.Rmd")
+```

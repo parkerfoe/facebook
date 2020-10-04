@@ -1,0 +1,161 @@
+---
+title: 'MY472 Final Exam Part B: Descriptive Analysis'
+---
+
+The goal of this second part of the assignment is to analyze the datasets you just created in order to answer a set of descriptive questions. Your answer to the questions will offer important context towards the overall research question:  __Why is there so much negativity on Facebook comments about politics?__
+
+For each item below, you should write code with any statistical or graphical analysis that you consider appropriate, and then answer the question.
+
+```{r}
+library(DBI, quietly = T)
+library(ggplot2)
+library(ggrepel)
+library(tibble)
+library(dplyr)
+
+# Import the data files from part A
+congress <- read.csv("congress-list.csv", stringsAsFactors = F)
+post_react <- read.csv("post_react.csv", stringsAsFactors = F)
+com_sent <- read.csv("com_sent.csv", stringsAsFactors = F)
+
+# Read the data files into tables of a SQLite database
+db <- dbConnect(RSQLite::SQLite(),
+                file = "~final-exam-parkerf20/congress.sqlite")
+
+dbWriteTable(db, "congress", congress)
+dbWriteTable(db, "post_react", post_react)
+dbWriteTable(db, "com_sent", com_sent)
+
+# https://stackoverflow.com/a/33525389 label outliers in a boxplot with mods
+is_outlier <- function(x) {
+  return(x < quantile(x, 0.15) - 1.5 * IQR(x)
+         | x > quantile(x, 0.9909) + 1.5 * IQR(x))
+}
+```
+
+1. First of all, how much negativity is there on the comments of pages by U.S. legislators? In other words, what proportion of comments are negative?
+
+**Out of all comments made on U.S. legislators pages, 23.35% are negative.**
+
+```{r}
+dbGetQuery(db,
+  "SELECT (100.0 * SUM(CASE WHEN feel='negative'
+  THEN 1 ELSE 0 END) / COUNT(*))
+  AS percent_negative FROM com_sent")
+```
+
+2. How much variation is there in the level of negativity that legislators see on their Facebook pages? Which are the legislators with the highest and lowest proportion of negative comments?
+
+**Proportion of negativity on legislators ranges from Rep Donald Norcross at 10.57% negative sentiment to Rep Bruce Poliquin with 48.31% negative sentiment.**
+
+```{r}
+## Consider creating a boxplot or a graph like the one in ggplot assignment
+neg_com <- dbGetQuery(db,
+  "SELECT facebook, (100.0 * SUM(CASE WHEN feel='negative'
+  THEN 1 ELSE 0 END) / COUNT(*))
+  AS percent_negative
+  FROM com_sent
+  GROUP BY facebook")
+
+# Merge the Facebook and real names from post_react to the SQLite output
+neg_com <- distinct(merge(x = neg_com,
+                 y = post_react[, c("from_name", "facebook")],
+                 by = "facebook"))
+
+# Write into csv for use in part C
+write.csv(neg_com, "neg_com.csv")
+
+# Variance of negativity
+var(neg_com$percent_negative)
+
+# Graph on a boxplot
+neg_box <- neg_com %>%
+  rownames_to_column(var = "outlier") %>%
+  mutate(is_outlier = ifelse(is_outlier(percent_negative),
+                             from_name,
+                             as.character(NA)))
+
+box <- ggplot(neg_box, aes(x = factor(0), y = percent_negative))
+
+box +
+  geom_boxplot(outlier.colour = "red", outlier.shape = 1) +
+  ylab("Percentage of Negativity") +
+  ggtitle("Negativity by Legislator") +
+  xlab("") +
+  theme_classic(base_size = 11) +
+  geom_text_repel(aes(label = neg_box$is_outlier),
+                  na.rm = T,
+                  nudge_y = 0.05,
+                  direction = "y")
+
+# geom_text_repel:
+#https://www.r-bloggers.com/repel-overlapping-text-labels-in-ggplot2/
+```
+
+3. How did negativity evolve over time during the period of analysis? Do you identify any particular days or periods during which negativity spiked? Can you explain why?
+
+**After plotting and subsetting the number of negative reactions in this time period, I found that the period of the most negativity was during the Democratic primaries, the summer before the U.S. election in 2016, and a period after the election. I took the top 6 dates where the data reported the most negativity and researched events that occurred in U.S. politics during those dates.** 
+
+**Two days with some of the most negativity, 22-23 June 2016, coincided with the Democratic sit-in advocating for stronger gun control a few weeks after the Orlando shooting and the Republican response to Congress coming to a brief standstill. The second most negative day, 21 January 2015, was the day of the State of the Union by President Obama and 25-26 October 2015 correlates with the Democratic caucus in Iowa. The final date, 18 November 2016, was regarding the aftermath of the 2016 election.**
+
+```{r warning=FALSE}
+# Negative reactions over time
+neg_time <- dbGetQuery(db,
+           'SELECT created_time,
+           SUM(CASE WHEN feel = "negative" THEN 1 ELSE 0 END)
+           AS count_negative
+           FROM com_sent
+           WHERE created_time >= "2015-01-01"
+           GROUP BY created_time')
+
+# Plot the negative reactions over time
+neg_time$created_time <- as.Date(neg_time$created_time)
+plot(neg_time$created_time, neg_time$count_negative, type = "l",
+     xlab = "Time of comment", ylab = "Number of negative sentiments",
+     title = "Negative comments over time")
+
+head(neg_time[order(-neg_time$count_negative), ])
+
+```
+
+4. Are there any other variables in the dataset that could help you measure negativity? If so, do you find similar results to questions 2 and 3 when you use that other signal?
+
+**Other variables in the database that could help me measure negativity are the angry and sad reactions on posts. I hypothesize that the more angry and sad reactions that people receive, the more likely they view the content negatively. After running modified queries on the post_react dataset, I found that the results are different from the ones run using sentiment analysis. Instead of being more spread out, negativity was concentrated mostly during the 2016 election year with the exception of 30 October 2015 which could be attributed to the primaries.**
+
+```{r}
+# We can use reactions on post_react to measure negativity
+
+# Question 2
+neg_post <- dbGetQuery(db,
+  "SELECT from_name, (100.0 * SUM(angry_count + sad_count) /
+  SUM(angry_count + sad_count + haha_count + love_count +
+  wow_count + likes_count))
+  AS percent_negative FROM post_react
+  GROUP BY from_name
+  ORDER BY percent_negative DESC")
+
+var(neg_post$percent_negative, na.rm = T)
+
+# Question 3
+neg_time_post <- dbGetQuery(db,
+           'SELECT created_time,
+           SUM(angry_count + sad_count)
+           AS count_negative
+           FROM post_react
+           WHERE created_time >= "2015-01-01"
+           GROUP BY created_time')
+
+neg_time_post$created_time <- as.Date(neg_time_post$created_time)
+
+head(neg_time_post[order(-neg_time_post$count_negative), ])
+
+plot(neg_time_post$created_time, neg_time_post$count_negative, type = "l",
+     xlab = "Time of post", ylab = "Number of negative reactions",
+     title = "Negative reactions over time")
+
+dbDisconnect(db)
+
+lintr::lint("B-descriptive-analysis.Rmd")
+```
+
+

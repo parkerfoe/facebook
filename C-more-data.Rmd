@@ -1,0 +1,110 @@
+---
+title: 'MY472 Final Exam Part C: Scraping additional data'
+---
+
+Now you will collect additional data to continue exploring the broader research question in the exam.
+
+1. The website [EveryPolitician](https://everypolitician.org/) contains information on legislators around the world. Using the webscraping tools you learned in the course, create a dataset with two variables -- `bioguide_id` and `age` -- by scraping the data available in these two pages: https://everypolitician.org/united-states-of-america/house/term-table/114.html and https://everypolitician.org/united-states-of-america/senate/term-table/114.html
+
+If you are having trouble scraping it, you can also just click on "Download data" (but you will not get full mark if you do that!)
+
+```{r message=FALSE, warning=FALSE}
+library(rvest)
+library(reshape2)
+library(tidyverse)
+library(data.table)
+library(eeptools) #Calculate age
+library(ggplot2)
+
+congress <- read.csv("congress-list.csv", stringsAsFactors = F)
+neg_com <- read.csv("neg_com.csv", stringsAsFactors = F)
+
+# Write html tables and bind all resulting tables to two separate dataframes
+url <- "https://everypolitician.org/united-states-of-america/house/term-table/114.html"
+tab_house <- html_table(read_html(url), fill = TRUE)
+tab_house <- rbindlist(tab_house) # Convert to dataframe
+
+url2 <- "https://everypolitician.org/united-states-of-america/senate/term-table/114.html"
+tab_senate <- html_table(read_html(url2), fill = TRUE)
+tab_senate <- rbindlist(tab_senate) # Convert to dataframe
+```
+
+```{r warning=FALSE}
+# Combine both house and senate dataframes into one
+leg_tab <- rbind(tab_house, tab_senate)
+
+# Keep only necessary rows of information
+leg_tab <- leg_tab %>%
+  filter(X1 == "Gender" | X1 == "Born" | X1 == "bioguide")
+
+# Cast the data from long to wide format using row ID numbers
+leg_tab <- dcast(leg_tab, rowid(X1) ~ X1, value.var = "X2")
+
+# Calculate age based on system date
+leg_tab$Born <- as.Date(leg_tab$Born)
+
+leg_tab <- leg_tab %>%
+  mutate(Age = age_calc(Born, enddate = Sys.Date(),
+                        units = "years", precise = F))
+
+```
+
+
+2. Are there more negative comments on the pages of younger politicians? Use any statistical or graphical methods that you consider appropriate to answer this question.
+
+**From the scatterplot and the linear regression model, there is no significant correlation between age of politician and percentage of negative comments received. Therefore, we can say that there are not more negative comments on the pages of younger politicians.**
+
+```{r}
+# Merge the legislator table with congress csv using the bioguide
+neg_pol <- merge(x = leg_tab,
+               y = congress,
+               by.x = "bioguide", by.y = "bioguide_id")
+
+neg_pol <- merge(x = neg_pol,
+                 y = neg_com,
+                 by = "facebook")
+
+# Create a scatterplot with a linear regression
+# to determine relation of age and negativity
+scatter <- ggplot(neg_pol, aes(x = Age,
+                               y = percent_negative, label = from_name))
+fit <- lm(percent_negative ~ Age, data = neg_pol)
+
+summary(fit)
+
+scatter +
+  scale_x_continuous() +
+  scale_y_continuous() +
+  geom_point(aes(alpha = abs(residuals(fit)))) +
+  geom_smooth(method = lm) +
+  guides(alpha = F) +
+  theme_minimal()
+
+```
+
+3. The file `congress-list.csv` contained five other legislator-level variables (chamber, gender, party, ideology, state). Choose TWO of these variables and explore whether they are related with the extent to which Members of Congress receive negative comments on their Facebook pages. Write a summary of your findings.
+
+**Based on the medians of gender, party, and a combination of gender and party, there is no significant difference in negative comments between and within the variables. However, within the combination of gender and party, Independent male representatives have the most negativity, while Democrat males have the least negativity.**
+
+**Looking at variance for each group, male legislators have a larger variance of negative comments at 19.2% versus female legislators at 12.3%. Republicans have a larger variation than Democrats, with Independent legislators having the most (due to small sample size the likelihood of larger variance is higher). Combining both party and gender, male Republicans have the most variance (discounting Independent males as, once again, the population is small) and Democrat females have the least amount of variance.**
+
+**As a result, we can say that there doesn't appear to be an obvious correlation between the number of gender, party, and negative comments received. However, Democrats, specificially Democrat women, seem to have a narrower range of percentage of negative comments received than Republicans.**
+
+```{r}
+# Because of the range of negativity in legislators, use median
+neg_pol %>%
+  group_by(Gender) %>%
+  summarise(gender_med = median(percent_negative),
+            gender_var = var(percent_negative))
+
+neg_pol %>%
+  group_by(party) %>%
+  summarise(party_med = median(percent_negative),
+            party_var = var(percent_negative))
+
+neg_pol %>%
+  group_by(party, Gender) %>%
+  summarise(party_gen_med = median(percent_negative),
+            party_gen_var = var(percent_negative))
+```
+
