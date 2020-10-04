@@ -1,47 +1,7 @@
 ---
-title: 'MY472 Final Exam Part A: Data Cleaning'
+title: 'Part A: Data Cleaning'
 ---
-
-The overall question you will be trying to answer in this final exam is: __Why is there so much negativity on Facebook comments about politics?__
-
-To answer this question, I will share with you a dataset that contains public Facebook data that corresponds to all the posts by Members of the U.S. Congress between January 1st, 2015 and December 31st, 2016, as well as all the comments and reactions to these posts. In addition, you will also have a dataset with sentiment predictions for each comment (negative, neutral, positive).
-
-As a first step, you will have to clean the data and convert it to a format that can facilitate the subsequent analysis. I recommend you use a SQLite database, but you can also work with regular data frames if you prefer.
-
-You have access to five data files. Read the text below for important information regarding their content, as well as links to download the files:
-
-1 - `congress-list.csv` contains information about each Member of Congress, including gender, type (House representative or Senator), party (Democrat, Republican, Independent), `nominate_dim1` (an estimate of political ideology, from -1 very liberal to +1 very conservative), state and district.
-
-IMPORTANT: this file also contains two important variables to merge all the different datasets. `bioguide_id` is the main key used to merge with external sources. `facebook` is the Facebook ID for each Member of Congress, and you should use this key to merge with the rest of the internal data sources. All files in the remaining datasets here contain this ID in the file name.
-
-2 - [`facebook-114-posts.zip`](https://www.dropbox.com/s/trznn23wtotnkon/facebook-114-posts.zip?dl=0) contains multiple .csv files with information about each post of the legislators' pages. All variables should be self-explanatory. Remember that you shouldn't use `from_id` or `from_name` to merge across different data sources. `id` is the unique numeric ID for each post.
-
-3 - [`facebook-114-comments.zip`](https://www.dropbox.com/s/vu2po7a35tqs3fg/facebook-114-comments.zip?dl=0) contains multiple .csv files with information about each comment on the legislators' pages. Each file corresponds to a different page. `from_id` and `from_name` here correspond to the person who wrote the comment. `likes_count` is the number of likes on each comment. `comments_count` is the number of replies to each comment. `id` is the unique numeric ID for each comment. `post_id` is the ID of the post to which this comment is replying (i.e. `id` in the posts .csv files). `is_reply` indicates whether the comment is a top-level comment (FALSE) or is a reply to an existing comment (TRUE); and if so, `in_reply_to_id` indicates the ID of the comment to which this comment is replying.
-
-Some additional information: remember that Facebook comments have a threaded structure: whenever you write a comment, you can comment directly on the post (top-level comment) or as a reply to an existing comment (reply).
-
-4 - [`facebook-114-reactions-totals.zip`](https://www.dropbox.com/s/yy3ams7szs3fa73/facebook-114-reactions-totals.zip?dl=0) offers statistics on the total of reactions (love, haha, angry...) to each post. `id` here corresponds to `id` in the `facebook-114-posts` datasets.
-
-5 - [`facebook-114-comments-sentiment.zip`](https://www.dropbox.com/s/iovfv0l2wj2j5dp/facebook-114-comments-sentiment.zip?dl=0) contains datasets that predict the sentiment of each comment in the `facebook-114-comments.zip` files. There are three variables measuring the probability that each comment is negative, neutral or positive. They add up to one. You can either use the probabilities or, for each comment, predict a category based on which probability is highest.
-
-**NOTE:** as you work on cleaning the dataset, if anything is not clear, you can ask in the forum for clarification.
-
-1. Before you start cleaning the data, first consider how to design the database. Read the rest of the final exam to help you think through the options. How many tables should you have, and why? Clue: the answer is not five!
-
-**I will have three tables:**
-
-_a. comments + seniment_
-_c. reaction + posts_
-_d. congress_
-
-**The above tables are merged according to the supplemental information needed in each. Sentiment datasets predict the sentiment of each comment, so those are merged. Reactions have the total number and type of reactions to each post by a legislator, which lead them to be merged as well. Finally, as congress contains all the necessary data in itself, it will be its own table.**
-
-2. Do any required steps necessary to clean and merge the data; and then enter the datasets into a SQLite database, or into data frames that you can save to disk.
-
-Make sure you do this in an efficient way. Pay special attention to variables that you will *not* need, and drop them from the tables data.frames to save memory and be more efficient.
-
 ```{r message=FALSE, warning=FALSE, include=FALSE}
-# Write your code here
 library(tidyverse, quietly = T)
 library(reshape2, quietly = T)
 library(DBI, quietly = T)
@@ -55,7 +15,6 @@ congress <- read.csv("congress-list.csv", stringsAsFactors = F)
 
 
 ```
-
 Functions
 ```{r}
 #Function to merge and clean all csv files (except comments)
@@ -148,9 +107,6 @@ com_sent <- com_sent %>% drop_na(facebook, feel)
 write.csv(post_react, "post_react.csv")
 write.csv(com_sent, "com_sent.csv")
 ```
-
-3. Compute relevant summary statistics for your tables. You should **at least** answer the following questions: how many rows do you have in each table? what are the average values of all numeric variables? what are the distribution of the categorical variables? 
-
 Summary statistics for post_react
 ```{r}
 # categorical variables: type, from_name
