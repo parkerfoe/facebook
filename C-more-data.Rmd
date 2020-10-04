@@ -2,11 +2,7 @@
 title: 'MY472 Final Exam Part C: Scraping additional data'
 ---
 
-Now you will collect additional data to continue exploring the broader research question in the exam.
-
-1. The website [EveryPolitician](https://everypolitician.org/) contains information on legislators around the world. Using the webscraping tools you learned in the course, create a dataset with two variables -- `bioguide_id` and `age` -- by scraping the data available in these two pages: https://everypolitician.org/united-states-of-america/house/term-table/114.html and https://everypolitician.org/united-states-of-america/senate/term-table/114.html
-
-If you are having trouble scraping it, you can also just click on "Download data" (but you will not get full mark if you do that!)
+Scraping the data available on: https://everypolitician.org/united-states-of-america/house/term-table/114.html and https://everypolitician.org/united-states-of-america/senate/term-table/114.html
 
 ```{r message=FALSE, warning=FALSE}
 library(rvest)
@@ -48,12 +44,7 @@ leg_tab <- leg_tab %>%
                         units = "years", precise = F))
 
 ```
-
-
-2. Are there more negative comments on the pages of younger politicians? Use any statistical or graphical methods that you consider appropriate to answer this question.
-
-**From the scatterplot and the linear regression model, there is no significant correlation between age of politician and percentage of negative comments received. Therefore, we can say that there are not more negative comments on the pages of younger politicians.**
-
+Measuring negativity on pages of younger politicians
 ```{r}
 # Merge the legislator table with congress csv using the bioguide
 neg_pol <- merge(x = leg_tab,
@@ -81,8 +72,6 @@ scatter +
   theme_minimal()
 
 ```
-
-3. The file `congress-list.csv` contained five other legislator-level variables (chamber, gender, party, ideology, state). Choose TWO of these variables and explore whether they are related with the extent to which Members of Congress receive negative comments on their Facebook pages. Write a summary of your findings.
 
 **Based on the medians of gender, party, and a combination of gender and party, there is no significant difference in negative comments between and within the variables. However, within the combination of gender and party, Independent male representatives have the most negativity, while Democrat males have the least negativity.**
 
