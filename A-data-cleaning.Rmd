@@ -11,9 +11,6 @@ library(data.table, quietly = T)
 library(bit64, quietly = T)
 library(readr, quietly = T)
 
-congress <- read.csv("congress-list.csv", stringsAsFactors = F)
-
-
 ```
 Functions
 ```{r}
