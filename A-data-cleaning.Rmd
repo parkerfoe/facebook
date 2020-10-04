@@ -1,6 +1,3 @@
----
-title: 'Part A: Data Cleaning'
----
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 library(tidyverse, quietly = T)
 library(reshape2, quietly = T)
