@@ -1,7 +1,3 @@
----
-title: 'MY472 Final Exam Part C: Scraping additional data'
----
-
 Scraping the data available on: https://everypolitician.org/united-states-of-america/house/term-table/114.html and https://everypolitician.org/united-states-of-america/senate/term-table/114.html
 
 ```{r message=FALSE, warning=FALSE}
